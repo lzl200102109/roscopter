@@ -17,7 +17,11 @@ add_message_files(
   Mavlink_RAW_IMU.msg
   RC.msg
   State.msg
-  VFR_HUD.msg)
+  VFR_HUD.msg
+  long_cmd.msg
+  template.msg
+  local_pos.msg
+  local_pos_setpt.msg)
 
 generate_messages(DEPENDENCIES std_msgs sensor_msgs geometry_msgs)
 

@@ -13,6 +13,8 @@ from sensor_msgs.msg import NavSatStatus
 
 import roscopter.msg
 
+MAV_FRAME_LOCAL_NED = 1
+
 
 mavlink_dir = os.path.realpath(os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -36,10 +38,13 @@ parser.add_option("--enable-control",dest="enable_control", default=False, help=
 
 (opts, args) = parser.parse_args()
 
-import mavutil
+from pymavlink import mavutil
 
 # create a mavlink serial instance
 master = mavutil.mavlink_connection(opts.device, baud=opts.baudrate)
+
+
+
 
 if opts.device is None:
     print("You must specify a serial device")
@@ -67,12 +72,84 @@ def send_rc(data):
     print "sending rc: %s" % data
 
 
+def send_cmd(data):
+    master.mav.command_long_send(
+        master.target_system,
+        master.target_component,
+        data.channel[0],
+        data.channel[1],
+        data.channel[2],
+        data.channel[3],
+        data.channel[4],
+        data.channel[5],
+        data.channel[6],
+        data.channel[7],
+        data.channel[8])
+    print "sending rc: %s" % data
+
+def send_setpoint(data):
+    master.mav.set_quad_motors_setpoint_send(
+        master.target_system,
+        data.motor_fl,
+        data.motor_fr,
+        data.motor_br,
+        data.motor_bl)
+    print "sending motor values: %s" % data
+
 def set_arm(req):
-    master.arducopter_arm()
+    '''arm motors (arducopter only)'''
+    master.mav.command_long_send(
+         master.target_system,  # target_system
+         mavutil.mavlink.MAV_COMP_ID_ALL, # target_component
+         mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM, # command
+         0, # confirmation
+         1, # param1 (1 to indicate arm)
+         0, # param2 (all other params meaningless)
+         0, # param3
+         0, # param4
+         0, # param5
+         0, # param6
+         0) # param7
     return []
 
 def set_disarm(req):
-    master.arducopter_disarm()
+    '''disarm motors (arducopter only)'''
+    master.mav.command_long_send(
+         master.target_system,  # target_system
+         mavutil.mavlink.MAV_COMP_ID_ALL, # target_component
+         mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM, # command
+         0, # confirmation
+         0, # param1 (1 to indicate arm)
+         0, # param2 (all other params meaningless)
+         0, # param3
+         0, # param4
+         0, # param5
+         0, # param6
+         0) # param7
+    return []
+
+def set_local_position(pos):
+    '''local position in ned frame'''
+    master.mav.local_position_ned_send(
+      rospy.Time.now(),
+      pos.x,
+      pos.y,
+      pos.z,
+      pos.vx,
+      pos.vy,
+      pos.vz)
+    return []
+
+def set_local_position_setpoint(pos_sp):
+    '''local position setpoint#50'''
+    master.mav.set_local_position_setpoint_send(
+      master.target_system,
+      mavutil.mavlink.MAV_COMP_ID_ALL,
+      MAV_FRAME_LOCAL_NED,
+      pos_sp.x,
+      pos_sp.y,
+      pos_sp.z,
+      pos_sp.yaw)
     return []
 
 pub_gps = rospy.Publisher('gps', NavSatFix)
@@ -83,7 +160,11 @@ pub_attitude = rospy.Publisher('attitude', roscopter.msg.Attitude)
 pub_raw_imu =  rospy.Publisher('raw_imu', roscopter.msg.Mavlink_RAW_IMU)
 if opts.enable_control:
     rospy.Subscriber("send_rc", roscopter.msg.RC , send_rc)
-
+    rospy.Subscriber("send_cmd", roscopter.msg.long_cmd, send_cmd)
+    rospy.Subscriber("send_setpoint", roscopter.msg.template, send_setpoint)
+    rospy.Subscriber("set_local_position", roscopter.msg.local_pos, set_local_position)
+    rospy.Subscriber("set_local_position_setpoint", roscopter.msg.local_pos_setpt, set_local_position_setpoint)
+    
 #define service callbacks
 arm_service = rospy.Service('arm', Empty, set_arm)
 disarm_service = rospy.Service('disarm', Empty, set_disarm)
@@ -97,7 +178,7 @@ gps_msg = NavSatFix()
 def mainloop():
     rospy.init_node('roscopter')
     while not rospy.is_shutdown():
-        rospy.sleep(0.001)
+        rospy.sleep(1)
         msg = master.recv_match(blocking=False)
         if not msg:
             continue
