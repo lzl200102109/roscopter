@@ -18,6 +18,7 @@ add_message_files(
   RC.msg
   long_cmd.msg
   sp_data.msg
+  template.msg
   State.msg
   VFR_HUD.msg)
 

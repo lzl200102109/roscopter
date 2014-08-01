@@ -58,6 +58,7 @@ def send_rc(data):
     master.mav.rc_channels_override_send(
         master.target_system,
         master.target_component,
+	#mavutil.mavlink.MAV_COMP_ID_ALL,
         data.channel[0],
         data.channel[1],
         data.channel[2],
@@ -85,14 +86,16 @@ def send_cmd(data):
     print "sending rc: %s" % data
 
 def send_setpoint(data):
-    master.mav.set_roll_pitch_yaw_thrust_send(
-        master.target_system,
-        master.target_component,
-        data.roll,
-        data.pitch,
-        data.yaw,
-        data.thrust)
-    print "sending 4DOF setpoint: %s" % data
+    master.mav.local_position_ned_send(
+        #rospy.get_rostime(),
+        50,
+        data.x,
+        data.y,
+        data.z,
+        data.vx,
+	data.vy,
+	data.vz)
+    print "sending local position: %s" % data
 
 def set_arm(req):
     '''arm motors (arducopter only)'''
@@ -135,7 +138,7 @@ pub_raw_imu =  rospy.Publisher('raw_imu', roscopter.msg.Mavlink_RAW_IMU)
 if opts.enable_control:
     rospy.Subscriber("send_rc", roscopter.msg.RC , send_rc)
     rospy.Subscriber("send_cmd", roscopter.msg.long_cmd, send_cmd)
-    rospy.Subscriber("send_setpoint", roscopter.msg.sp_data, send_setpoint)
+    rospy.Subscriber("send_setpoint", roscopter.msg.template, send_setpoint)
 
 #define service callbacks
 arm_service = rospy.Service('arm', Empty, set_arm)
