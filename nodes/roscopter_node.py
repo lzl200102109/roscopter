@@ -6,7 +6,7 @@ import time
 
 import roslib; roslib.load_manifest('roscopter')
 import rospy
-from std_msgs.msg import String, Header
+from std_msgs.msg import String, Header, Float64MultiArray
 from std_srvs.srv import *
 from sensor_msgs.msg import NavSatFix
 from sensor_msgs.msg import NavSatStatus
@@ -129,12 +129,32 @@ def set_disarm(req):
          0) # param7
     return []
 
+#handle function for displaying #32 message
+def pose_display(data):
+    rospy.loginfo("x: %s, y: %s, z: %s", data.data[0], data.data[1], data.data[2])
+
+#function for sending #32 message
+def send_32(data):
+    master.mav.local_position_ned_send(
+        50,
+        data.data[0],
+        data.data[1],
+        data.data[2],
+        1.0,
+	1.0,
+	1.0)
+    print "sending #32 message: %s" % data
+
 pub_gps = rospy.Publisher('gps', NavSatFix)
 pub_rc = rospy.Publisher('rc', roscopter.msg.RC)
 pub_state = rospy.Publisher('state', roscopter.msg.State)
 pub_vfr_hud = rospy.Publisher('vfr_hud', roscopter.msg.VFR_HUD)
 pub_attitude = rospy.Publisher('attitude', roscopter.msg.Attitude)
 pub_raw_imu =  rospy.Publisher('raw_imu', roscopter.msg.Mavlink_RAW_IMU)
+
+#subscribe pose
+rospy.Subscriber("simplePose", Float64MultiArray, send_32)
+
 if opts.enable_control:
     rospy.Subscriber("send_rc", roscopter.msg.RC , send_rc)
     rospy.Subscriber("send_cmd", roscopter.msg.long_cmd, send_cmd)
@@ -153,7 +173,7 @@ gps_msg = NavSatFix()
 def mainloop():
     rospy.init_node('roscopter')
     while not rospy.is_shutdown():
-        rospy.sleep(1)
+        rospy.sleep(0.1)
         msg = master.recv_match(blocking=False)
         if not msg:
             continue
