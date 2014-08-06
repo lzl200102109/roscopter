@@ -140,7 +140,7 @@ def send_32(data):
         data.data[0],
         data.data[1],
         data.data[2],
-        1.0,
+        data.data[3],
 	1.0,
 	1.0)
     print "sending #32 message: %s" % data
@@ -173,7 +173,7 @@ gps_msg = NavSatFix()
 def mainloop():
     rospy.init_node('roscopter')
     while not rospy.is_shutdown():
-        rospy.sleep(0.1)
+        rospy.sleep(0.01)
         msg = master.recv_match(blocking=False)
         if not msg:
             continue
