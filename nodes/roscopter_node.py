@@ -163,7 +163,8 @@ def send_89(data):
         data.data[2], #pos.z
 	1.0,
 	1.0,
-        data.data[3], #pos.yaw)
+        data.data[3], #pos.yaw
+	)
     print "sending #89 message: %s" % data
 
 pub_gps = rospy.Publisher('gps', NavSatFix)
