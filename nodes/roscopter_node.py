@@ -90,7 +90,7 @@ def send_cmd(data):
         data.channel[8])
     print "sending rc: %s" % data
 
-def send_setpoint(data):
+def send_template(data):
     master.mav.local_position_ned_send(
         #rospy.get_rostime(),
         50,
@@ -134,9 +134,9 @@ def set_disarm(req):
          0) # param7
     return []
 
-#handle function for displaying #32 message
-def pose_display(data):
-    rospy.loginfo("x: %s, y: %s, z: %s", data.data[0], data.data[1], data.data[2])
+#handle function for displaying #32 message from pose_estimator
+#def pose_display(data):
+#   rospy.loginfo("x: %s, y: %s, z: %s", data.data[0], data.data[1], data.data[2])
 
 #function for sending #32 message
 def send_32(data):
@@ -152,6 +152,20 @@ def send_32(data):
 	1.0)
     print "sending #32 message: %s" % data
 
+#function for sending #89 message(abused for pose_estimator)
+def send_89(data):
+    local_time[1] = time.time() # get the end time of local time
+    #print "start: %s, end: %s, dt: %s" % (local_time[0],local_time[1],local_time[1]-local_time[0])
+    master.mav.local_position_ned_system_global_offset_send(
+        px4_time[0]*1000 + (local_time[1]-local_time[0])*1000000,
+        data.data[0], #pos.x
+        data.data[1], #pos.y
+        data.data[2], #pos.z
+	1.0,
+	1.0,
+        data.data[3], #pos.yaw)
+    print "sending #89 message: %s" % data
+
 pub_gps = rospy.Publisher('gps', NavSatFix)
 pub_rc = rospy.Publisher('rc', roscopter.msg.RC)
 pub_state = rospy.Publisher('state', roscopter.msg.State)
@@ -159,13 +173,13 @@ pub_vfr_hud = rospy.Publisher('vfr_hud', roscopter.msg.VFR_HUD)
 pub_attitude = rospy.Publisher('attitude', roscopter.msg.Attitude)
 pub_raw_imu =  rospy.Publisher('raw_imu', roscopter.msg.Mavlink_RAW_IMU)
 
-#subscribe pose
-rospy.Subscriber("simplePose", Float64MultiArray, send_32)
+#subscribe pose from pose_estimator
+rospy.Subscriber("simplePose", Float64MultiArray, send_89)
 
 if opts.enable_control:
     rospy.Subscriber("send_rc", roscopter.msg.RC , send_rc)
     rospy.Subscriber("send_cmd", roscopter.msg.long_cmd, send_cmd)
-    rospy.Subscriber("send_setpoint", roscopter.msg.template, send_setpoint)
+    rospy.Subscriber("send_template", roscopter.msg.template, send_template)
 
 #define service callbacks
 arm_service = rospy.Service('arm', Empty, set_arm)
