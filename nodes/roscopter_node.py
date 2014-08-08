@@ -13,6 +13,11 @@ from sensor_msgs.msg import NavSatStatus
 
 import roscopter.msg
 
+#import numpy as np
+
+px4_time = [0]     #time from px4 (from ATTITUDE)
+local_time = [0,0] #first one is the start time, second one is the end time
+
 
 mavlink_dir = os.path.realpath(os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -135,13 +140,15 @@ def pose_display(data):
 
 #function for sending #32 message
 def send_32(data):
+    local_time[1] = time.time() # get the end time of local time
+    #print "start: %s, end: %s, dt: %s" % (local_time[0],local_time[1],local_time[1]-local_time[0])
     master.mav.local_position_ned_send(
-        50,
-        data.data[0],
-        data.data[1],
-        data.data[2],
-        data.data[3],
-	1.0,
+        px4_time[0]*1000 + (local_time[1]-local_time[0])*1000000,
+        data.data[0], #pos.x
+        data.data[1], #pos.y
+        data.data[2], #pos.z
+        data.data[3], #pos.yaw
+        1.0,
 	1.0)
     print "sending #32 message: %s" % data
 
@@ -171,9 +178,10 @@ gps_msg = NavSatFix()
 
 
 def mainloop():
+
     rospy.init_node('roscopter')
     while not rospy.is_shutdown():
-        rospy.sleep(0.01)
+        rospy.sleep(0.001)
         msg = master.recv_match(blocking=False)
         if not msg:
             continue
@@ -205,6 +213,13 @@ def mainloop():
             #pub.publish(String("MSG: %s"%msg))
             if msg_type == "ATTITUDE" :
                 pub_attitude.publish(msg.roll, msg.pitch, msg.yaw, msg.rollspeed, msg.pitchspeed, msg.yawspeed)
+		
+		px4_time[0] = msg.time_boot_ms # get the time from px4
+
+		local_time[0] = time.time() # get the local start time
+
+		#print "roll: %f, pitch: %f, yaw: %f" %(msg.roll, msg.pitch, msg.yaw)
+		#print "time: %d" %(px4_time[0])
 
 
             if msg_type == "LOCAL_POSITION_NED" :
