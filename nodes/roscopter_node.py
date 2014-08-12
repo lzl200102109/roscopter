@@ -200,9 +200,9 @@ gps_msg = NavSatFix()
 
 def mainloop():
 
-    rospy.init_node('roscopter')
+    rospy.init_node('roscopter', log_level=rospy.DEBUG)
     while not rospy.is_shutdown():
-        rospy.sleep(0.001)
+        rospy.sleep(0.01)
         msg = master.recv_match(blocking=False)
         if not msg:
             continue
