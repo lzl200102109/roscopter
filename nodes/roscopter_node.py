@@ -156,6 +156,7 @@ def send_32(data):
 def send_89(data):
     local_time[1] = time.time() # get the end time of local time
     #print "start: %s, end: %s, dt: %s" % (local_time[0],local_time[1],local_time[1]-local_time[0])
+
     master.mav.local_position_ned_system_global_offset_send(
         px4_time[0]*1000 + (local_time[1]-local_time[0])*1000000,
         data.data[0], #pos.x
@@ -166,6 +167,7 @@ def send_89(data):
         data.data[3], #pos.yaw
 	)
     print "sending #89 message: %s" % data
+    #print "x: %s, y: %s, z: %s, yaw: %s" % (data.data[0],data.data[1],data.data[2],data.data[3])
 
 pub_gps = rospy.Publisher('gps', NavSatFix)
 pub_rc = rospy.Publisher('rc', roscopter.msg.RC)
