@@ -1,6 +1,0 @@
-*~
-*.sw*
-*.pyc
-build/
-msg_gen/
-src/
