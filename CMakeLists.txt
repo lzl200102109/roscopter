@@ -16,9 +16,6 @@ add_message_files(
   Control.msg
   Mavlink_RAW_IMU.msg
   RC.msg
-  long_cmd.msg
-  sp_data.msg
-  template.msg
   State.msg
   VFR_HUD.msg)
 

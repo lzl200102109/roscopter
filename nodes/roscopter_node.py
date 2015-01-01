@@ -13,11 +13,8 @@ from sensor_msgs.msg import NavSatStatus
 
 import roscopter.msg
 
-#import numpy as np
-
 px4_time = [0]     #time from px4 (from ATTITUDE)
 local_time = [0,0] #first one is the start time, second one is the end time
-
 
 mavlink_dir = os.path.realpath(os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -41,12 +38,10 @@ parser.add_option("--enable-control",dest="enable_control", default=False, help=
 
 (opts, args) = parser.parse_args()
 
-from pymavlink import mavutil
+import mavutil
 
 # create a mavlink serial instance
 master = mavutil.mavlink_connection(opts.device, baud=opts.baudrate)
-
-
 
 if opts.device is None:
     print("You must specify a serial device")
@@ -63,7 +58,6 @@ def send_rc(data):
     master.mav.rc_channels_override_send(
         master.target_system,
         master.target_component,
-	#mavutil.mavlink.MAV_COMP_ID_ALL,
         data.channel[0],
         data.channel[1],
         data.channel[2],
@@ -75,71 +69,16 @@ def send_rc(data):
     print "sending rc: %s" % data
 
 
-def send_cmd(data):
-    master.mav.command_long_send(
-        master.target_system,
-        master.target_component,
-        data.channel[0],
-        data.channel[1],
-        data.channel[2],
-        data.channel[3],
-        data.channel[4],
-        data.channel[5],
-        data.channel[6],
-        data.channel[7],
-        data.channel[8])
-    print "sending rc: %s" % data
-
-def send_template(data):
-    master.mav.local_position_ned_send(
-        #rospy.get_rostime(),
-        50,
-        data.x,
-        data.y,
-        data.z,
-        data.vx,
-	data.vy,
-	data.vz)
-    print "sending local position: %s" % data
-
 def set_arm(req):
-    '''arm motors (arducopter only)'''
-    master.mav.command_long_send(
-         master.target_system,  # target_system
-         mavutil.mavlink.MAV_COMP_ID_ALL, # target_component
-         mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM, # command
-         0, # confirmation
-         1, # param1 (1 to indicate arm)
-         0, # param2 (all other params meaningless)
-         0, # param3
-         0, # param4
-         0, # param5
-         0, # param6
-         0) # param7
+    master.arducopter_arm()
     return []
 
 def set_disarm(req):
-    '''disarm motors (arducopter only)'''
-    master.mav.command_long_send(
-         master.target_system,  # target_system
-         mavutil.mavlink.MAV_COMP_ID_ALL, # target_component
-         mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM, # command
-         0, # confirmation
-         0, # param1 (1 to indicate arm)
-         0, # param2 (all other params meaningless)
-         0, # param3
-         0, # param4
-         0, # param5
-         0, # param6
-         0) # param7
+    master.arducopter_disarm()
     return []
 
-#handle function for displaying #32 message from pose_estimator
-#def pose_display(data):
-#   rospy.loginfo("x: %s, y: %s, z: %s", data.data[0], data.data[1], data.data[2])
-
-#function for sending #32 message
-def send_32(data):
+# function for sending local_position_ned message (#32)
+def send_local_position_ned(data):
     local_time[1] = time.time() # get the end time of local time
     #print "start: %s, end: %s, dt: %s" % (local_time[0],local_time[1],local_time[1]-local_time[0])
     master.mav.local_position_ned_send(
@@ -147,25 +86,25 @@ def send_32(data):
         data.data[0], #pos.x
         data.data[1], #pos.y
         data.data[2], #pos.z
-        data.data[3], #pos.yaw
-        1.0,
-	1.0)
-    print "sending #32 message: %s" % data
+        data.data[3], #pos.vx
+        data.data[4], #pos.vy
+        data.data[5])#, #pos.vz
+#        data.data[6]) #pos.yaw
+    print "sending #32 message: \n  %s" % data
 
-#function for sending #89 message(abused for pose_estimator)
-def send_89(data):
+#function for sending local_position_ned_system_global_offset message (#89) (abused for pose_estimator)
+def send_local_position_ned_system_global_offset(data):
     local_time[1] = time.time() # get the end time of local time
     #print "start: %s, end: %s, dt: %s" % (local_time[0],local_time[1],local_time[1]-local_time[0])
     master.mav.local_position_ned_system_global_offset_send(
         px4_time[0]*1000 + (local_time[1]-local_time[0])*1000000,
-        data.data[0], #pos.x
-        data.data[1], #pos.y
-        data.data[2], #pos.z
-	1.0,
-	1.0,
-        data.data[3], #pos.yaw
-	)
-    print "sending #89 message: %s" % data
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        data.data[6]) #pos.yaw
+    print "sending #89 message.\n\n"
 
 pub_gps = rospy.Publisher('gps', NavSatFix)
 pub_rc = rospy.Publisher('rc', roscopter.msg.RC)
@@ -175,12 +114,11 @@ pub_attitude = rospy.Publisher('attitude', roscopter.msg.Attitude)
 pub_raw_imu =  rospy.Publisher('raw_imu', roscopter.msg.Mavlink_RAW_IMU)
 
 #subscribe pose from pose_estimator
-rospy.Subscriber("simplePose", Float64MultiArray, send_89)
+rospy.Subscriber("simplePose", Float64MultiArray, send_local_position_ned)
+rospy.Subscriber("simplePose", Float64MultiArray, send_local_position_ned_system_global_offset)
 
 if opts.enable_control:
     rospy.Subscriber("send_rc", roscopter.msg.RC , send_rc)
-    rospy.Subscriber("send_cmd", roscopter.msg.long_cmd, send_cmd)
-    rospy.Subscriber("send_template", roscopter.msg.template, send_template)
 
 #define service callbacks
 arm_service = rospy.Service('arm', Empty, set_arm)
@@ -193,7 +131,6 @@ gps_msg = NavSatFix()
 
 
 def mainloop():
-
     rospy.init_node('roscopter')
     while not rospy.is_shutdown():
         rospy.sleep(0.001)
@@ -228,14 +165,8 @@ def mainloop():
             #pub.publish(String("MSG: %s"%msg))
             if msg_type == "ATTITUDE" :
                 pub_attitude.publish(msg.roll, msg.pitch, msg.yaw, msg.rollspeed, msg.pitchspeed, msg.yawspeed)
-		
-		px4_time[0] = msg.time_boot_ms # get the time from px4
-
-		local_time[0] = time.time() # get the local start time
-
-		#print "roll: %f, pitch: %f, yaw: %f" %(msg.roll, msg.pitch, msg.yaw)
-		#print "time: %d" %(px4_time[0])
-
+                px4_time[0] = msg.time_boot_ms  # get the time from px4
+                local_time[0] = time.time()     # get the local start time
 
             if msg_type == "LOCAL_POSITION_NED" :
                 print "Local Pos: (%f %f %f) , (%f %f %f)" %(msg.x, msg.y, msg.z, msg.vx, msg.vy, msg.vz)
